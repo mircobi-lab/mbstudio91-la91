@@ -88,7 +88,8 @@ LA91Panel::LA91Panel (LA91Processor& p)
     keyboard.setWantsKeyboardFocus (false);
     addAndMakeVisible (keyboard);
 
-    proc.onProgramChanged = [this] { juce::MessageManager::callAsync ([sp = juce::Component::SafePointer<LA91Panel> (this)] { if (sp) sp->refreshPrograms(); }); };
+    juce::Component::SafePointer<LA91Panel> safeThis (this);
+    proc.onProgramChanged = [safeThis] { juce::MessageManager::callAsync ([safeThis] { if (safeThis != nullptr) safeThis->refreshPrograms(); }); };
     refreshPrograms();
     reattach();
     updateButtons();
