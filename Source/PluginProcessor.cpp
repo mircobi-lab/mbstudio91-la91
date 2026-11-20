@@ -3,8 +3,14 @@
 
 LA91Processor::LA91Processor()
     : AudioProcessor (BusesProperties().withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      state (*this, nullptr, "LA91", la91::createLayout())
+      state (*this, nullptr, "LA91", la91::createLayout()),
+      midiMap (*this, "LA-91")
 {
+    // banchi per i profili dei controller: A manopole principali, B seconda riga, C fader, D extra
+    midiMap.setBanks ({ juce::StringArray { "U1_CUTOFF", "U1_RESO", "U1_TVFDEPTH", "U1_LEVEL", "U2_CUTOFF", "U2_RESO", "U2_TVFDEPTH", "U2_LEVEL" },
+                        juce::StringArray { "U1_TVAT1", "U1_TVAT2", "U1_TVASUS", "U1_TVAT5", "U1_TVFT1", "U1_TVFT2", "U1_TVFSUS", "U1_TVFT5" },
+                        juce::StringArray { "L1_CUTOFF", "L1_RESO", "L1_LEVEL", "L2_CUTOFF", "L2_RESO", "L2_LEVEL", "P_TONEBAL", "UC_PBAL" },
+                        juce::StringArray { "UC_L1RATE", "UC_L2RATE", "UC_L3RATE", "UC_CHRATE", "UC_CHDEPTH", "UC_CHBAL", "UC_PMLFOD", "UC_EQHG" } });
     reader.attach (state);
     setCurrentProgram (0);
 }
@@ -25,6 +31,7 @@ void LA91Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
 {
     juce::ScopedNoDenormals noDenormals;
     keyboardState.processNextMidiBuffer (midi, 0, buffer.getNumSamples(), true);
+    midiMap.process (midi);
     for (const auto meta : midi)
     {
         const auto m = meta.getMessage();
@@ -110,6 +117,8 @@ void LA91Processor::getStateInformation (juce::MemoryBlock& dest)
     extra.setProperty ("imported", juce::Base64::toBase64 (bank.getData(), bank.getSize()), nullptr);
     st.removeChild (st.getChildWithName ("LA91Extra"), nullptr);
     st.appendChild (extra, nullptr);
+    st.removeChild (st.getChildWithName ("MIDIMAP"), nullptr);
+    st.appendChild (midiMap.toValueTree(), nullptr);
     if (auto xml = st.createXml()) copyXmlToBinary (*xml, dest);
 }
 
@@ -136,6 +145,11 @@ void LA91Processor::setStateInformation (const void* data, int size)
         }
         currentProgram = juce::jlimit (0, juce::jmax (0, getNumPrograms() - 1), (int) extra["program"]);
         st.removeChild (extra, nullptr);
+    }
+    if (auto mm = st.getChildWithName ("MIDIMAP"); mm.isValid())
+    {
+        midiMap.fromValueTree (mm);
+        st.removeChild (mm, nullptr);
     }
     state.replaceState (st);
     if (onProgramChanged) onProgramChanged();

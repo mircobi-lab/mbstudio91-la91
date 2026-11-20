@@ -39,6 +39,14 @@ public:
             for (auto& dev : juce::MidiInput::getAvailableDevices())
                 mainWindow->pluginHolder->deviceManager.setMidiInputDeviceEnabled (dev.identifier, true);
         mainWindow->setVisible (true);
+        // profilo del controller scelto dal nome della porta MIDI (solo se non ci sono gia' assegnazioni)
+        if (auto* proc = dynamic_cast<LA91Processor*> (mainWindow->getAudioProcessor()))
+        {
+            juce::StringArray ports;
+            for (auto& dev : juce::MidiInput::getAvailableDevices())
+                if (mainWindow->pluginHolder->deviceManager.isMidiInputDeviceEnabled (dev.identifier)) ports.add (dev.name);
+            proc->midiMap.autoSelectFromPorts (ports);
+        }
         applyCommandLine (commandLine);
     }
 
@@ -53,6 +61,8 @@ public:
             const auto a = args[i], v = args[i + 1].unquoted();
             if (a == "--program") proc->setCurrentProgram (v.getIntValue() - 1);
             else if (a == "--shot") shot = v;
+            else if (a == "--profile") proc->midiMap.applyProfile (v.getIntValue());
+            else if (a == "--learn") proc->midiMap.setLearnMode (true);
         }
         if (shot.isNotEmpty())
             juce::Timer::callAfterDelay (1500, [this, shot]

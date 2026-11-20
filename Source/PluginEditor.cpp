@@ -12,7 +12,8 @@ constexpr int rowY[4] = { 124, 300, 476, 652 };
 
 // ================================================================================================ pannello
 LA91Panel::LA91Panel (LA91Processor& p)
-    : proc (p), keyboard (p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
+    : proc (p), keyboard (p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
+      midiButtons (p.midiMap), midiOverlay (p.midiMap)
 {
     buildGroups();
 
@@ -45,6 +46,7 @@ LA91Panel::LA91Panel (LA91Processor& p)
         addAndMakeVisible (onBtn[i]);
     }
     portaBtn.getProperties().set ("led", true);
+    mbstudio::midi::tag (portaBtn, "P_PORTASW");
     portaBtn.onClick = [this] { setParamInt ("P_PORTASW", paramInt ("P_PORTASW") ? 0 : 1); updateButtons(); };
     addAndMakeVisible (portaBtn);
 
@@ -97,6 +99,8 @@ LA91Panel::LA91Panel (LA91Processor& p)
     keyboard.setLowestVisibleKey (36);
     keyboard.setWantsKeyboardFocus (false);
     addAndMakeVisible (keyboard);
+    addAndMakeVisible (midiButtons);
+    addAndMakeVisible (midiOverlay);     // per ultimo: sopra a tutto
 
     juce::Component::SafePointer<LA91Panel> safeThis (this);
     proc.onProgramChanged = [safeThis] { juce::MessageManager::callAsync ([safeThis] { if (safeThis != nullptr) safeThis->refreshPrograms(); }); };
@@ -197,6 +201,7 @@ void LA91Panel::reattach()
         const auto id = la91::paramID (b, *f->def);
         f->slider.setDoubleClickReturnValue (true, f->def->def);
         f->att = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (proc.state, id, f->slider);
+        mbstudio::midi::tag (f->slider, id);
         f->slider.setTooltip (juce::String (f->def->longName));
     }
     touched.clear();
@@ -268,6 +273,8 @@ void LA91Panel::resized()
     loadBtn.setBounds (930, 56, 110, 30);
     clearBtn.setBounds (1046, 56, 86, 30);
     panicBtn.setBounds (1222, 56, 80, 30);
+    midiButtons.setBounds (1140, 16, 162, 28);
+    midiOverlay.setBounds (getLocalBounds());
     meter.setBounds (1310, 18, 14, 82);
 
     // colonna di sinistra (sezione di selezione)
@@ -329,7 +336,6 @@ void LA91Panel::paint (juce::Graphics& g)
         g.drawText (line3.toUpperCase(), in.withY (in.getY() + 52.f).withHeight (18.f), juce::Justification::centredLeft, true);
         ui::paintLed (g, { d.getRight() - 14.f, d.getY() + 12.f }, 3.5f, C::ledGreen, juce::jmin (1.f, proc.synth.getOutputLevel() * 3.f));
     }
-    ui::paintPrinted (g, { 1140.f, 16.f, 160.f, 28.f }, "PROGRAM", 16.f, juce::Justification::centredLeft, C::printDim);
     ui::paintPrinted (g, { 1140.f, 56.f, 160.f, 30.f }, "BANK  .SYX", 16.f, juce::Justification::centredLeft, C::printDim);
     ui::paintPrinted (g, { 1270.f, 86.f, 34.f, 14.f }, "OUT", 11.f, juce::Justification::centredRight, C::printDim);
 
