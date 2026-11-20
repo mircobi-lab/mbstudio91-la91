@@ -1,42 +1,95 @@
-# Compila LA-91 su macOS (VST3 + AU + Standalone, binario universale Intel/Apple Silicon) e Windows (VST3 + Standalone).
-# Basta caricare il progetto su GitHub: i file pronti si scaricano dalla scheda "Actions" > ultima esecuzione > Artifacts.
+# Compila MBStudio91 LA-91 su GitHub a ogni aggiornamento del ramo main:
+#  - Mac: VST3 + AU + app, binario universale (Apple Silicon e Intel), firma ad hoc, controllo con pluginval
+#  - Windows: VST3 + app (x64)
+# I file pronti vengono pubblicati nella pagina "Releases" del repository: non serve scaricare i sorgenti.
 name: build
+
 on:
   push:
   workflow_dispatch:
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  macos:
+  mac:
+    name: macOS universale
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - name: Configura
-        run: cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        run: cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
       - name: Compila
         run: cmake --build build --config Release --target MBStudio91LA91_VST3 MBStudio91LA91_AU MBStudio91LA91_Standalone -- -quiet
-      - name: Prepara pacchetto
+      - name: Firma ad hoc e comprimi
         run: |
-          mkdir -p out
-          cp -R "build/MBStudio91LA91_artefacts/Release/VST3/MBStudio91 LA-91.vst3" out/
-          cp -R "build/MBStudio91LA91_artefacts/Release/AU/MBStudio91 LA-91.component" out/
-          cp -R "build/MBStudio91LA91_artefacts/Release/Standalone/MBStudio91 LA-91.app" out/
-          cp README.md LICENSE.md out/
+          cd "build/MBStudio91LA91_artefacts/Release"
+          codesign --force --deep -s - "VST3/MBStudio91 LA-91.vst3"
+          codesign --force --deep -s - "AU/MBStudio91 LA-91.component"
+          codesign --force --deep -s - "Standalone/MBStudio91 LA-91.app"
+          ditto -c -k --keepParent "VST3/MBStudio91 LA-91.vst3"      "LA-91-VST3-mac.zip"
+          ditto -c -k --keepParent "AU/MBStudio91 LA-91.component"   "LA-91-AU-mac.zip"
+          ditto -c -k --keepParent "Standalone/MBStudio91 LA-91.app" "LA-91-App-mac.zip"
+      - name: Controllo con pluginval
+        run: |
+          curl -sSL -o pv.zip https://github.com/Tracktion/pluginval/releases/download/v1.0.4/pluginval_macOS.zip
+          unzip -q pv.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 8 --validate-in-process --skip-gui-tests "build/MBStudio91LA91_artefacts/Release/VST3/MBStudio91 LA-91.vst3"
       - uses: actions/upload-artifact@v4
         with:
-          name: LA-91-macOS
-          path: out
+          name: mac
+          path: build/MBStudio91LA91_artefacts/Release/*.zip
 
   windows:
+    name: Windows x64
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - name: Configura
-        run: cmake -S . -B build
+        run: cmake -S . -B build -A x64
       - name: Compila
         run: cmake --build build --config Release --target MBStudio91LA91_VST3 MBStudio91LA91_Standalone
+      - name: Comprimi
+        shell: pwsh
+        run: |
+          $r = "build/MBStudio91LA91_artefacts/Release"
+          Compress-Archive -Path "$r/VST3/MBStudio91 LA-91.vst3" -DestinationPath "LA-91-VST3-win.zip"
+          Compress-Archive -Path "$r/Standalone/MBStudio91 LA-91.exe" -DestinationPath "LA-91-App-win.zip"
       - uses: actions/upload-artifact@v4
         with:
-          name: LA-91-Windows
-          path: |
-            build/MBStudio91LA91_artefacts/Release/VST3
-            build/MBStudio91LA91_artefacts/Release/Standalone
+          name: windows
+          path: "*.zip"
+
+  release:
+    name: Pubblica in Releases
+    if: github.ref == 'refs/heads/main'
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          name: MBStudio91 LA-91 0.1.${{ github.run_number }}
+          body: |
+            Compilato automaticamente da GitHub dal commit ${{ github.sha }}.
+
+            **Mac** (Apple Silicon e Intel, macOS 11 o successivo)
+            - LA-91-VST3-mac.zip: estrai e copia in ~/Library/Audio/Plug-Ins/VST3/
+            - LA-91-AU-mac.zip: estrai e copia in ~/Library/Audio/Plug-Ins/Components/
+            - LA-91-App-mac.zip: versione autonoma, va in Applicazioni
+            Il plugin non è firmato da Apple: dopo averlo copiato, nel Terminale
+            `xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/"MBStudio91 LA-91.vst3" ~/Library/Audio/Plug-Ins/Components/"MBStudio91 LA-91.component" /Applications/"MBStudio91 LA-91.app"`
+
+            **Windows** (64 bit)
+            - LA-91-VST3-win.zip: estrai e copia la cartella "MBStudio91 LA-91.vst3" in C:\Program Files\Common Files\VST3\
+            - LA-91-App-win.zip: versione autonoma (MBStudio91 LA-91.exe)
+          files: dist/*.zip
