@@ -34,6 +34,7 @@ if(APPLE)
 endif()
 
 juce_add_plugin(MBStudio91LA91
+    ICON_BIG "${CMAKE_CURRENT_SOURCE_DIR}/icons/la-91-macos-1024.png"
     COMPANY_NAME "MBStudio91"
     COMPANY_WEBSITE "https://mbstudio91.fun"
     BUNDLE_ID "fun.mbstudio91.la91"
