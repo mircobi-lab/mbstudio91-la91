@@ -1,0 +1,42 @@
+# Compila LA-91 su macOS (VST3 + AU + Standalone, binario universale Intel/Apple Silicon) e Windows (VST3 + Standalone).
+# Basta caricare il progetto su GitHub: i file pronti si scaricano dalla scheda "Actions" > ultima esecuzione > Artifacts.
+name: build
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configura
+        run: cmake -S . -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+      - name: Compila
+        run: cmake --build build --config Release --target MBStudio91LA91_VST3 MBStudio91LA91_AU MBStudio91LA91_Standalone -- -quiet
+      - name: Prepara pacchetto
+        run: |
+          mkdir -p out
+          cp -R "build/MBStudio91LA91_artefacts/Release/VST3/MBStudio91 LA-91.vst3" out/
+          cp -R "build/MBStudio91LA91_artefacts/Release/AU/MBStudio91 LA-91.component" out/
+          cp -R "build/MBStudio91LA91_artefacts/Release/Standalone/MBStudio91 LA-91.app" out/
+          cp README.md LICENSE.md out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LA-91-macOS
+          path: out
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configura
+        run: cmake -S . -B build
+      - name: Compila
+        run: cmake --build build --config Release --target MBStudio91LA91_VST3 MBStudio91LA91_Standalone
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LA-91-Windows
+          path: |
+            build/MBStudio91LA91_artefacts/Release/VST3
+            build/MBStudio91LA91_artefacts/Release/Standalone
