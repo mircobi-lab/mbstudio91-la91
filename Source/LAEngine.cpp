@@ -270,6 +270,15 @@ void Synth::reset()
     lastNote[0] = lastNote[1] = -1;
 }
 
+void Synth::panic()
+{
+    reset();
+    for (auto& c : chorus) c.clear();
+    reverb.clear();
+    for (int t = 0; t < 2; ++t) { eqLow[t].reset(); eqHigh[t].reset(); }
+    outLevel = 0;
+}
+
 bool Synth::toneSounds (int tone, int note, const PatchState& ps) const
 {
     const int km = ps.pat[18], split = 36 + ps.pat[19];

@@ -65,7 +65,17 @@ LA91Panel::LA91Panel (LA91Processor& p)
                               });
     };
     clearBtn.onClick = [this] { proc.clearImported(); status = "BANCO IMPORTATO SVUOTATO"; statusTicks = 90; refreshPrograms(); };
-    for (auto* b : { &prevBtn, &nextBtn, &loadBtn, &clearBtn }) addAndMakeVisible (*b);
+    panicBtn.setTooltip ("MIDI PANIC: spegne subito tutte le note, il sustain e le code di chorus e riverbero");
+    panicBtn.getProperties().set ("led", true);
+    panicBtn.getProperties().set ("ledColour", "ffff3b30");
+    panicBtn.onClick = [this]
+    {
+        proc.requestPanic();
+        proc.keyboardState.allNotesOff (0);
+        panicFlash = 15;
+        status = "PANIC: TUTTE LE NOTE SPENTE"; statusTicks = 90;
+    };
+    for (auto* b : { &prevBtn, &nextBtn, &loadBtn, &clearBtn, &panicBtn }) addAndMakeVisible (*b);
 
     programBox.onChange = [this]
     {
@@ -241,6 +251,8 @@ void LA91Panel::timerCallback()
     meter.setLevel (std::pow (proc.synth.getOutputLevel(), .5f));
     updateButtons();
     if (statusTicks > 0 && --statusTicks == 0) status.clear();
+    if (panicFlash > 0) --panicFlash;
+    panicBtn.setToggleState (panicFlash > 0 && (panicFlash / 3) % 2 == 0, juce::dontSendNotification);
     repaint (displayArea);
     repaint (diagramArea);
 }
@@ -255,6 +267,7 @@ void LA91Panel::resized()
     nextBtn.setBounds (868, 56, 46, 30);
     loadBtn.setBounds (930, 56, 110, 30);
     clearBtn.setBounds (1046, 56, 86, 30);
+    panicBtn.setBounds (1222, 56, 80, 30);
     meter.setBounds (1310, 18, 14, 82);
 
     // colonna di sinistra (sezione di selezione)

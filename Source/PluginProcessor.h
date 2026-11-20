@@ -45,6 +45,7 @@ public:
     juce::MidiKeyboardState keyboardState;
     la91::Synth synth;
     std::function<void()> onProgramChanged;           // per l'editor (thread dei messaggi)
+    void requestPanic() noexcept { panicRequested = true; }   // MIDI PANIC, eseguito all'inizio del blocco audio
 
 private:
     la91::ParamReader reader;
@@ -53,6 +54,7 @@ private:
     std::vector<la91::RawPatch> imported;
     int currentProgram = 0;
     std::atomic<int> pendingProgram { -1 };
+    std::atomic<bool> panicRequested { false };
 
     const la91::RawPatch* programAt (int index) const;
     void handleAsyncUpdate() override;

@@ -30,6 +30,7 @@ void LA91Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
         const auto m = meta.getMessage();
         if (m.isProgramChange()) { pendingProgram.store (m.getProgramChangeNumber()); triggerAsyncUpdate(); }
     }
+    if (panicRequested.exchange (false)) synth.panic();
     reader.read (patch);
     buffer.clear();
     synth.process (buffer, midi, patch);

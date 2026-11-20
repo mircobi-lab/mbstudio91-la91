@@ -90,6 +90,7 @@ class ChorusFx
 public:
     void prepare (double sr);
     void process (const float* in, float* outL, float* outR, int n, int type, int rate, int depth, int balance);
+    void clear() { std::fill (buf.begin(), buf.end(), 0.f); fbState = 0; }
 private:
     double sr = 48000;
     std::vector<float> buf;
@@ -102,6 +103,7 @@ class ReverbFx
 public:
     void prepare (double sr, int maxBlock);
     void process (float* l, float* r, const float* sendL, const float* sendR, int n, int type, int balance);
+    void clear() { verb.reset(); std::fill (dl.begin(), dl.end(), 0.f); std::fill (dr.begin(), dr.end(), 0.f); gateEnv = gateGain = gateHold = 0; }
 private:
     double sr = 48000;
     juce::Reverb verb;
@@ -117,6 +119,7 @@ public:
     Synth();
     void prepare (double sampleRate, int maxBlock);
     void reset();
+    void panic();        // MIDI PANIC: voci spente subito, controller azzerati, code di chorus/riverbero svuotate
     void process (juce::AudioBuffer<float>&, const juce::MidiBuffer&, const PatchState&);
     float getOutputLevel() const { return outLevel.load(); }
     int activeVoices() const { return numActive.load(); }

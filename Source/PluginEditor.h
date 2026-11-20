@@ -39,7 +39,8 @@ private:
     int selTone = 0;           // 0 UPPER, 1 LOWER
     juce::String touched, touchedValue;
 
-    juce::TextButton toneBtn[2], partBtn[4], onBtn[4], prevBtn { "<" }, nextBtn { ">" }, loadBtn { "LOAD SYX" }, clearBtn { "CLEAR" }, portaBtn { "PORTA" };
+    juce::TextButton toneBtn[2], partBtn[4], onBtn[4], prevBtn { "<" }, nextBtn { ">" }, loadBtn { "LOAD SYX" }, clearBtn { "CLEAR" }, portaBtn { "PORTA" }, panicBtn { "PANIC" };
+    int panicFlash = 0;
     juce::ComboBox programBox;
     mbstudio::ui::LedMeter meter { 12 };
     juce::MidiKeyboardComponent keyboard;
